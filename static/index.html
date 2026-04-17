@@ -262,6 +262,12 @@
       margin: 20px 0 0 0;
       padding: 0;
     }
+    dialog .setup-intro {
+      margin: 0 0 16px 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
 
     @media (max-width: 540px) {
       .banner { flex-wrap: wrap; gap: 16px; }
@@ -342,6 +348,34 @@
     <div id="events" class="events"></div>
   </section>
 
+  <dialog id="setup-dialog">
+    <h2>Welcome — Quick Setup</h2>
+    <p class="setup-intro">
+      Auto-detected values from your active network interface are filled in below.
+      Confirm or adjust, then save to start monitoring.
+    </p>
+    <form id="setup-form">
+      <div class="grid">
+        <label class="full">Router IP
+          <input name="router_ip" autocomplete="off">
+        </label>
+        <label>ISP1 Gateway
+          <input name="isp1_gateway" autocomplete="off">
+        </label>
+        <label>DNS Server
+          <input name="dns_server" autocomplete="off">
+        </label>
+        <label class="full">Upstream Host (public reachability target)
+          <input name="upstream_host" autocomplete="off">
+        </label>
+      </div>
+      <menu>
+        <button type="button" id="setup-skip-btn">Skip</button>
+        <button type="submit" class="primary">Save &amp; Start Monitoring</button>
+      </menu>
+    </form>
+  </dialog>
+
   <dialog id="settings-dialog">
     <h2>Settings</h2>
     <form id="settings-form">
@@ -401,6 +435,7 @@
     let lastEventSeq = 0;
     let chart = null;
     let settingsDialog = null;
+    let setupDialog = null;
     let audioCtx = null;
     let muted = localStorage.getItem('fts-netmon-muted') === 'true';
 
@@ -816,8 +851,74 @@
       }
     }
 
+    async function maybeRunSetup() {
+      let cfg;
+      try {
+        cfg = await api('/api/config');
+      } catch (err) {
+        console.warn('config fetch failed', err);
+        return;
+      }
+      if (cfg.configured) return;
+
+      let suggest = {};
+      try {
+        suggest = await api('/api/setup/suggest');
+      } catch (err) {
+        console.warn('setup suggestion failed', err);
+      }
+
+      const form = document.getElementById('setup-form');
+      form.elements.router_ip.value =
+        suggest.router_ip || cfg.router_ip || '';
+      form.elements.isp1_gateway.value =
+        suggest.isp1_gateway || cfg.isp1_gateway || '';
+      form.elements.dns_server.value =
+        suggest.dns_server || cfg.dns_server || '';
+      form.elements.upstream_host.value =
+        cfg.upstream_host || suggest.upstream_host || '8.8.8.8';
+
+      setupDialog.showModal();
+    }
+
+    async function submitSetup(e) {
+      e.preventDefault();
+      const form = document.getElementById('setup-form');
+      const data = { configured: true };
+      for (const el of form.elements) {
+        if (el.name) data[el.name] = el.value;
+      }
+      try {
+        await api('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        setupDialog.close();
+        document.getElementById('cards').dataset.key = '';
+        if (chart) { chart.destroy(); chart = null; }
+        await tick();
+      } catch (err) {
+        alert('Save failed: ' + err.message);
+      }
+    }
+
+    async function skipSetup() {
+      try {
+        await api('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ configured: true }),
+        });
+      } catch (err) {
+        console.warn('skip setup failed', err);
+      }
+      setupDialog.close();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       settingsDialog = document.getElementById('settings-dialog');
+      setupDialog = document.getElementById('setup-dialog');
       document.getElementById('settings-btn').addEventListener('click', openSettings);
       document.getElementById('clear-log-btn').addEventListener('click', clearLog);
       document.getElementById('save-log-btn').addEventListener('click', saveLog);
@@ -827,11 +928,14 @@
       document.getElementById('cancel-btn').addEventListener('click',
         () => settingsDialog.close());
       document.getElementById('settings-form').addEventListener('submit', saveSettings);
+      document.getElementById('setup-form').addEventListener('submit', submitSetup);
+      document.getElementById('setup-skip-btn').addEventListener('click', skipSetup);
       // Unlock Web Audio after any user interaction (autoplay policy)
       document.addEventListener('click', ensureAudio, { capture: true });
       updateMuteButton();
       tick();
       refreshNetinfo();
+      maybeRunSetup();
       setInterval(tick, 1000);
       setInterval(() => refreshNetinfo(), 30000);
     });

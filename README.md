@@ -1,6 +1,6 @@
 # FTS Net Mon
 
-Dual-WAN connectivity monitor. Continuously probes a set of hosts (router, ISP gateways, DNS, upstream) over ICMP and TCP, tracks loss/latency/jitter, and surfaces the state through a Tk desktop GUI and a local web UI.
+Dual-WAN connectivity monitor. Continuously probes a set of hosts (router, ISP gateways, DNS, upstream) over ICMP and TCP, tracks loss/latency/jitter, and surfaces the state through a local web UI (with an optional Tk desktop GUI).
 
 ## Features
 
@@ -10,6 +10,9 @@ Dual-WAN connectivity monitor. Continuously probes a set of hosts (router, ISP g
 - Event log with transitions (first fail, sustained down after 3 fails, recovery)
 - Optional audible alert on drop
 - Web UI at `http://127.0.0.1:8765` with live status, events, and config editing
+- **First-run setup wizard**: auto-detects your router IP and DNS server from the active network interface and offers them as the initial configuration
+- **Auto-launches a browser tab** when the web server comes up
+- Optional Tk desktop GUI (opt in with `--gui`)
 - Network info endpoint (`/api/netinfo`) and event log export
 - Pure Python stdlib — no third-party dependencies
 
@@ -17,22 +20,45 @@ Dual-WAN connectivity monitor. Continuously probes a set of hosts (router, ISP g
 
 - Python 3.10+
 - Windows or Linux/macOS (uses the system `ping` binary)
-- Tk (bundled with CPython on Windows/macOS; on Linux install `python3-tk`)
+- Tk (only needed for `--gui`; bundled with CPython on Windows/macOS; on Linux install `python3-tk`)
 
 ## Run
 
 ```bash
-python fts_netmon.py                    # Tk GUI + web UI
-python fts_netmon.py --headless         # web UI only
-python fts_netmon.py --no-web           # GUI only
+python fts_netmon.py                    # web UI (default) + auto-opens browser
+python fts_netmon.py --gui              # web UI + Tk desktop GUI
+python fts_netmon.py --gui --no-web     # Tk GUI only
+python fts_netmon.py --no-browser       # web UI, don't auto-open browser
 python fts_netmon.py --bind 0.0.0.0 --port 8765
 ```
 
-First launch writes a default `config.json` next to the script. Edit it directly or use the web UI; changes restart the probes.
+By default, only the web UI runs — the Tk desktop GUI is **off** unless `--gui` is passed. A browser tab opens automatically to the web UI; pass `--no-browser` to skip that.
+
+### CLI flags
+
+| Flag | Description |
+| --- | --- |
+| `--gui` | Also launch the Tk desktop GUI (off by default) |
+| `--no-web` | Disable the web UI (requires `--gui`) |
+| `--no-browser` | Don't auto-open a browser tab on startup |
+| `--bind <addr>` | Web UI bind address (default `127.0.0.1`; use `0.0.0.0` to expose on the network) |
+| `--port <n>` | Web UI port (default `8765`) |
+
+## First-run setup
+
+On first launch (no `config.json`, or a config that has never been confirmed), the web UI pops a **Quick Setup** dialog pre-filled with values detected from the active network interface:
+
+- **Router IP** and **ISP1 Gateway** — the default gateway of the active interface
+- **DNS Server** — the first DNS server reported for that interface
+- **Upstream Host** — defaults to `8.8.8.8`
+
+Confirm to save and start monitoring, or skip to accept current defaults. You can re-open the regular **Settings** dialog at any time to edit values.
+
+Suggestion data comes from `GET /api/setup/suggest`, which is derived from `/api/netinfo`.
 
 ## Configuration
 
-`config.json` fields:
+`config.json` (created next to the script on first run) fields:
 
 | Field | Description |
 | --- | --- |
@@ -46,8 +72,9 @@ First launch writes a default `config.json` next to the script. Edit it directly
 | `timeout_ms` | Probe timeout |
 | `history_size` | Samples retained per target |
 | `sound_on_drop` | Audible alert on sustained drop |
+| `configured` | Internal flag — set `true` after the setup wizard completes. Set to `false` (or delete the file) to re-trigger the wizard. |
 
-Leave a field blank to disable that target.
+Leave a host field blank to disable that target.
 
 ## HTTP API
 
@@ -59,6 +86,7 @@ Leave a field blank to disable that target.
 | GET | `/api/events?since=<seq>` | Event log tail |
 | GET | `/api/events/export` | Full event log as text |
 | GET | `/api/netinfo?refresh=1` | Local network info |
+| GET | `/api/setup/suggest` | Suggested router/DNS values from active interface |
 
 ## Layout
 
@@ -66,13 +94,13 @@ Leave a field blank to disable that target.
 fts_netmon.py   entry point / CLI
 app.py          shared AppState (config, monitor, event log)
 config.py       Config + Target dataclasses, JSON persistence
-monitor.py     probe scheduler / threads
+monitor.py      probe scheduler / threads
 probes.py       ICMP + TCP probe primitives
 stats.py        rolling per-target stats
 events.py       event log
 netinfo.py      local network info
 sound.py        drop alert
-gui.py          Tk GUI
+gui.py          Tk GUI (optional; --gui)
 web.py          HTTP server + JSON API
 static/         web UI assets
 config.json     runtime configuration

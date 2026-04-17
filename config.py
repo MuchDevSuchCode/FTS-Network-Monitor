@@ -25,6 +25,7 @@ class Config:
     timeout_ms: int = 1000
     history_size: int = 180
     sound_on_drop: bool = True
+    configured: bool = False
 
     def targets(self) -> list[Target]:
         t: list[Target] = []
@@ -50,7 +51,18 @@ class Config:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         known = {k: data[k] for k in data if k in cls.__dataclass_fields__}
-        return cls(**known)
+        cfg = cls(**known)
+        if "configured" not in data:
+            # Back-compat: pre-flag configs are considered configured if any
+            # host field looks user-supplied (i.e. differs from defaults).
+            defaults = cls()
+            cfg.configured = (
+                cfg.router_ip != defaults.router_ip
+                or bool(cfg.isp1_gateway)
+                or cfg.dns_server != defaults.dns_server
+                or bool(cfg.isp2_gateway)
+            )
+        return cfg
 
     def save(self, path: Path) -> None:
         with open(path, "w", encoding="utf-8") as f:

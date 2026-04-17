@@ -142,6 +142,21 @@ def _make_handler(app: AppState):
                 self._send_json(200, get_network_info(force_refresh=force))
                 return
 
+            if path == "/api/setup/suggest":
+                from netinfo import get_network_info
+                info = get_network_info()
+                active = info.get("active") or {}
+                dns_list = active.get("dns_servers") or []
+                gateway = active.get("gateway") or ""
+                self._send_json(200, {
+                    "router_ip": gateway,
+                    "isp1_gateway": gateway,
+                    "dns_server": dns_list[0] if dns_list else "",
+                    "upstream_host": "8.8.8.8",
+                    "source_interface": active.get("name") or "",
+                })
+                return
+
             if path == "/api/events/export":
                 body = format_log(app.event_log.all()).encode("utf-8")
                 filename = f"fts-netmon-{time.strftime('%Y%m%d-%H%M%S')}.log"
