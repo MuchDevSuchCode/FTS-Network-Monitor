@@ -1,0 +1,12 @@
+{
+  "router_ip": "10.100.10.1",
+  "isp1_gateway": "10.100.10.1",
+  "dns_server": "10.100.10.185",
+  "upstream_host": "8.8.8.8",
+  "isp2_gateway": "",
+  "probe_interval": 1.0,
+  "tcp_probe_interval": 2.0,
+  "timeout_ms": 1000,
+  "history_size": 180,
+  "sound_on_drop": true
+}

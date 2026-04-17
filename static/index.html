@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTS Net Mon</title>
+  <style>
+    :root {
+      --bg: #14141c;
+      --card: #1f1f2c;
+      --card-alt: #181824;
+      --grid: #2a2a38;
+      --text: #f0f0f0;
+      --muted: #8a8a9a;
+      --accent: #4fc3f7;
+      --ok: #4caf50;
+      --warn: #ff9800;
+      --down: #f44336;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding-bottom: 24px;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--grid);
+    }
+    .brand h1 { margin: 0; font-size: 22px; color: var(--accent); letter-spacing: 0.5px; }
+    .brand .tagline { color: var(--muted); font-size: 12px; }
+    .actions { margin-left: auto; display: flex; gap: 8px; }
+    button {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--grid);
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    button:hover { background: var(--grid); }
+    button.primary {
+      background: var(--accent);
+      color: #000;
+      font-weight: 600;
+      border-color: var(--accent);
+    }
+    button.primary:hover { background: #29b6f6; }
+
+    .banner {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin: 16px 24px;
+      padding: 14px 20px;
+      background: var(--card);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+    }
+    .banner .group { display: flex; flex-direction: column; }
+    .banner .lbl {
+      font-size: 10px; color: var(--muted); letter-spacing: 1.5px;
+      font-weight: 700;
+    }
+    .banner .status {
+      font-size: 20px; font-weight: 700; color: var(--muted);
+      line-height: 1.2;
+    }
+    .banner .spacer { flex: 1; }
+    .banner .meta { text-align: right; }
+    .banner #clock, .banner #uptime {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px; color: var(--muted);
+    }
+
+    .status-ok, .light-ok { color: var(--ok); }
+    .status-degraded, .light-degraded { color: var(--warn); }
+    .status-down, .light-down { color: var(--down); }
+    .status-init, .status-none { color: var(--muted); }
+
+    .host-net {
+      margin: 0 24px 12px 24px;
+      padding: 14px 18px;
+      background: var(--card);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+    }
+    .host-net-head {
+      display: flex; align-items: center; margin-bottom: 10px;
+    }
+    .host-net-title { display: flex; align-items: baseline; gap: 10px; flex: 1; }
+    .host-net-head h2 {
+      margin: 0; font-size: 11px; color: var(--muted);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    }
+    .netinfo-fetched { font-size: 10px; color: var(--muted); }
+    button.small {
+      padding: 4px 10px; font-size: 11px;
+    }
+    .host-net-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px 32px;
+    }
+    .nfield {
+      display: grid; grid-template-columns: 140px 1fr;
+      align-items: center; padding: 4px 0;
+      border-bottom: 1px solid var(--grid);
+    }
+    .nfield.full { grid-column: 1 / -1; }
+    .nk {
+      font-size: 10px; color: var(--muted); font-weight: 700;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .nv {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px; color: var(--text); word-break: break-all;
+    }
+    .nv.warn { color: var(--warn); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 12px;
+      padding: 0 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-header { display: flex; align-items: center; gap: 10px; }
+    .light {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .light-ok    { background: var(--ok);   box-shadow: 0 0 8px var(--ok); }
+    .light-degraded { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+    .light-down  { background: var(--down); box-shadow: 0 0 8px var(--down); }
+    .card-title .name { font-weight: 600; font-size: 14px; }
+    .card-title .sub  { font-size: 11px; color: var(--muted); }
+    .status-line { margin: 8px 0 6px 0; font-size: 12px; font-weight: 600; }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .stat { text-align: center; }
+    .stat .s-lbl {
+      display: block; font-size: 9px; color: var(--muted);
+      font-weight: 700; letter-spacing: 0.5px;
+    }
+    .stat .s-val {
+      display: block; font-family: 'Consolas', monospace;
+      font-size: 12px; font-weight: 700;
+    }
+
+    .spark {
+      width: 100%;
+      height: 48px;
+      background: var(--card-alt);
+      border-radius: 3px;
+    }
+
+    .chart-wrap, .events-wrap {
+      margin: 16px 24px;
+      padding: 16px 18px;
+      background: var(--card);
+      border: 1px solid var(--grid);
+      border-radius: 6px;
+    }
+    .chart-wrap {
+      height: 340px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-wrap h2, .events-wrap h2 {
+      margin: 0 0 8px 0; font-size: 11px; color: var(--muted);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    }
+    #chart { flex: 1; min-height: 0; }
+    .events {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      background: var(--card-alt);
+      border-radius: 3px;
+      padding: 8px 10px;
+    }
+    .event { padding: 1px 0; white-space: pre-wrap; word-break: break-word; }
+    .event .ts { color: var(--muted); }
+    .event.ok   .msg { color: var(--ok); }
+    .event.warn .msg { color: var(--warn); }
+    .event.fail .msg { color: var(--down); }
+    .event.info .msg { color: var(--text); }
+
+    dialog {
+      border: 1px solid var(--grid);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 440px;
+      max-width: 90vw;
+    }
+    dialog::backdrop { background: rgba(0, 0, 0, 0.65); }
+    dialog h2 {
+      margin: 0 0 16px 0; color: var(--accent);
+      font-size: 16px; font-weight: 700;
+    }
+    dialog .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 14px;
+    }
+    dialog label {
+      display: flex; flex-direction: column;
+      font-size: 11px; color: var(--muted); gap: 4px;
+      font-weight: 600; letter-spacing: 0.5px;
+    }
+    dialog label.full { grid-column: 1 / -1; }
+    dialog label.inline {
+      flex-direction: row; align-items: center; gap: 10px;
+      font-size: 13px; color: var(--text); text-transform: none; letter-spacing: 0;
+    }
+    dialog label.inline input[type="checkbox"] {
+      width: 16px; height: 16px; accent-color: var(--accent);
+    }
+    button.muted { opacity: 0.6; }
+    dialog input {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--grid);
+      padding: 8px 10px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    dialog input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(79, 195, 247, 0.25);
+    }
+    dialog menu {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin: 20px 0 0 0;
+      padding: 0;
+    }
+
+    @media (max-width: 540px) {
+      .banner { flex-wrap: wrap; gap: 16px; }
+      .cards { grid-template-columns: 1fr; padding: 0 12px; }
+      .host-net { margin: 0 12px 12px 12px; }
+      .host-net-grid { grid-template-columns: 1fr; }
+      .chart-wrap, .events-wrap { margin: 12px; }
+      .topbar { padding: 14px 16px; }
+      dialog { min-width: auto; width: 90vw; }
+      dialog .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>FTS Net Mon</h1>
+      <div class="tagline">Dual-WAN Connectivity Monitor</div>
+    </div>
+    <div class="actions">
+      <button id="mute-btn" title="Toggle drop alert sound">Sound</button>
+      <button id="save-log-btn">Save Log</button>
+      <button id="clear-log-btn">Clear Log</button>
+      <button id="settings-btn">Settings</button>
+    </div>
+  </header>
+
+  <section class="banner">
+    <div class="group">
+      <span class="lbl">ISP1</span>
+      <span id="g-isp1" class="status status-none">—</span>
+    </div>
+    <div class="group">
+      <span class="lbl">ISP2</span>
+      <span id="g-isp2" class="status status-none">—</span>
+    </div>
+    <div class="group">
+      <span class="lbl">LAN</span>
+      <span id="g-lan" class="status status-none">—</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="meta">
+      <div id="clock">—</div>
+      <div id="uptime">Uptime: 00:00:00</div>
+    </div>
+  </section>
+
+  <section class="host-net" id="host-net">
+    <div class="host-net-head">
+      <div class="host-net-title">
+        <h2>Host Network</h2>
+        <span id="netinfo-fetched" class="netinfo-fetched"></span>
+      </div>
+      <button id="refresh-netinfo-btn" class="small">Refresh</button>
+    </div>
+    <div class="host-net-grid">
+      <div class="nfield"><span class="nk">Hostname</span>        <span class="nv" data-nf="hostname">—</span></div>
+      <div class="nfield"><span class="nk">Interface</span>       <span class="nv" data-nf="interface">—</span></div>
+      <div class="nfield"><span class="nk">IPv4 Address</span>    <span class="nv" data-nf="ipv4">—</span></div>
+      <div class="nfield"><span class="nk">Subnet</span>          <span class="nv" data-nf="subnet">—</span></div>
+      <div class="nfield"><span class="nk">Default Gateway</span> <span class="nv" data-nf="gateway">—</span></div>
+      <div class="nfield"><span class="nk">DNS Servers</span>     <span class="nv" data-nf="dns">—</span></div>
+      <div class="nfield"><span class="nk">MAC Address</span>     <span class="nv" data-nf="mac">—</span></div>
+      <div class="nfield"><span class="nk">DHCP</span>            <span class="nv" data-nf="dhcp">—</span></div>
+      <div class="nfield full"><span class="nk">Outbound IP</span><span class="nv" data-nf="outbound">—</span></div>
+    </div>
+  </section>
+
+  <section class="cards" id="cards"></section>
+
+  <section class="chart-wrap">
+    <h2>Latency History</h2>
+    <canvas id="chart"></canvas>
+  </section>
+
+  <section class="events-wrap">
+    <h2>Events</h2>
+    <div id="events" class="events"></div>
+  </section>
+
+  <dialog id="settings-dialog">
+    <h2>Settings</h2>
+    <form id="settings-form">
+      <div class="grid">
+        <label class="full">Router IP
+          <input name="router_ip" autocomplete="off">
+        </label>
+        <label>ISP1 Gateway
+          <input name="isp1_gateway" autocomplete="off">
+        </label>
+        <label>ISP2 Gateway
+          <input name="isp2_gateway" autocomplete="off">
+        </label>
+        <label>DNS Server
+          <input name="dns_server" autocomplete="off">
+        </label>
+        <label>Upstream Host
+          <input name="upstream_host" autocomplete="off">
+        </label>
+        <label>ICMP Interval (s)
+          <input name="probe_interval" type="number" step="0.1" min="0.2">
+        </label>
+        <label>TCP Interval (s)
+          <input name="tcp_probe_interval" type="number" step="0.1" min="0.2">
+        </label>
+        <label>Timeout (ms)
+          <input name="timeout_ms" type="number" min="100" step="50">
+        </label>
+        <label>History Size
+          <input name="history_size" type="number" min="30" step="10">
+        </label>
+        <label class="full inline">
+          <input name="sound_on_drop" type="checkbox">
+          <span>Server-side beep when a target drops</span>
+        </label>
+      </div>
+      <menu>
+        <button type="button" id="cancel-btn">Cancel</button>
+        <button type="submit" class="primary">Save &amp; Restart</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    const SERIES_COLORS = [
+      '#4fc3f7', '#ffb74d', '#81c784', '#ba68c8',
+      '#e57373', '#64b5f6', '#a1887f', '#dce775',
+      '#4db6ac', '#f06292',
+    ];
+    const GROUP_MAP = { isp1: 'ISP1', isp2: 'ISP2', lan: 'LAN' };
+    const STATUS_LABEL = {
+      ok: 'UP', degraded: 'DEGRADED', down: 'DOWN',
+      init: '…', none: '—',
+    };
+
+    let lastEventSeq = 0;
+    let chart = null;
+    let settingsDialog = null;
+    let audioCtx = null;
+    let muted = localStorage.getItem('fts-netmon-muted') === 'true';
+
+    function ensureAudio() {
+      if (!audioCtx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playDropSound() {
+      if (muted) return;
+      ensureAudio();
+      if (!audioCtx) return;
+      try {
+        const now = audioCtx.currentTime;
+        const tones = [{ f: 880, t: 0 }, { f: 660, t: 0.5 }];
+        for (const { f, t } of tones) {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          const start = now + t;
+          o.type = 'square';
+          o.frequency.value = f;
+          g.gain.setValueAtTime(0.0001, start);
+          g.gain.exponentialRampToValueAtTime(0.18, start + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.0001, start + 0.4);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(start);
+          o.stop(start + 0.45);
+        }
+      } catch (e) {
+        console.warn('audio failed', e);
+      }
+    }
+
+    function updateMuteButton() {
+      const btn = document.getElementById('mute-btn');
+      btn.textContent = muted ? 'Muted' : 'Sound';
+      btn.classList.toggle('muted', muted);
+      btn.title = muted
+        ? 'Drop alert sound is muted — click to enable'
+        : 'Drop alert sound is on — click to mute';
+    }
+
+    function toggleMute() {
+      muted = !muted;
+      localStorage.setItem('fts-netmon-muted', String(muted));
+      updateMuteButton();
+      if (!muted) {
+        ensureAudio();
+        playDropSound();  // test tone so user hears the volume
+      }
+    }
+
+    function saveLog() {
+      const a = document.createElement('a');
+      a.href = '/api/events/export';
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function api(path, opts = {}) {
+      const r = await fetch(path, opts);
+      if (!r.ok) throw new Error(`${path}: HTTP ${r.status}`);
+      return r.json();
+    }
+
+    function fmt(v) {
+      return (typeof v === 'number' && v > 0) ? v.toFixed(1) : '—';
+    }
+
+    function renderBanner(status) {
+      for (const key of Object.keys(GROUP_MAP)) {
+        const el = document.getElementById('g-' + key);
+        const s = status.groups[GROUP_MAP[key]] || 'none';
+        el.textContent = STATUS_LABEL[s] || s;
+        el.className = 'status status-' + s;
+      }
+      const u = status.uptime_seconds;
+      const h = String(Math.floor(u / 3600)).padStart(2, '0');
+      const m = String(Math.floor((u % 3600) / 60)).padStart(2, '0');
+      const sec = String(u % 60).padStart(2, '0');
+      document.getElementById('uptime').textContent = `Uptime: ${h}:${m}:${sec}`;
+      document.getElementById('clock').textContent = new Date().toLocaleString();
+    }
+
+    function cardId(t) { return `${t.name}|${t.kind}`; }
+
+    function renderCards(status) {
+      const container = document.getElementById('cards');
+      const key = status.targets.map(cardId).join(',');
+      if (container.dataset.key !== key) {
+        container.dataset.key = key;
+        container.innerHTML = '';
+        for (const t of status.targets) {
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.dataset.id = cardId(t);
+          div.innerHTML = `
+            <div class="card-header">
+              <span class="light"></span>
+              <div class="card-title">
+                <div class="name"></div>
+                <div class="sub"></div>
+              </div>
+            </div>
+            <div class="status-line"></div>
+            <div class="stats">
+              ${['LAST','AVG','MIN','MAX','JIT','LOSS'].map(l =>
+                `<div class="stat"><span class="s-lbl">${l}</span>` +
+                `<span class="s-val" data-stat="${l.toLowerCase()}">—</span></div>`
+              ).join('')}
+            </div>
+            <svg class="spark" viewBox="0 0 300 48" preserveAspectRatio="none"></svg>
+          `;
+          container.appendChild(div);
+        }
+      }
+
+      for (const t of status.targets) {
+        const card = container.querySelector(`[data-id="${CSS.escape(cardId(t))}"]`);
+        if (!card) continue;
+        card.querySelector('.name').textContent = `${t.name} — ${t.kind_label}`;
+        card.querySelector('.sub').textContent = `${t.host} · ${t.group}`;
+        card.querySelector('.light').className = 'light light-' + t.status;
+
+        const line = card.querySelector('.status-line');
+        line.className = 'status-line status-' + t.status;
+        let txt;
+        if (t.status === 'ok')       txt = `OK · ${t.stats.last.toFixed(0)} ms`;
+        else if (t.status === 'degraded')
+          txt = `DEGRADED · ${t.stats.recent_loss_pct.toFixed(0)}% recent loss`;
+        else if (t.status === 'down')
+          txt = `DOWN · ${t.stats.consecutive_fail} consecutive fails`;
+        else txt = 'initializing…';
+        line.textContent = `${t.kind_label}   ${txt}`;
+
+        card.querySelector('[data-stat="last"]').textContent = fmt(t.stats.last);
+        card.querySelector('[data-stat="avg"]').textContent  = fmt(t.stats.avg);
+        card.querySelector('[data-stat="min"]').textContent  = fmt(t.stats.min);
+        card.querySelector('[data-stat="max"]').textContent  = fmt(t.stats.max);
+        card.querySelector('[data-stat="jit"]').textContent  = fmt(t.stats.jitter);
+        card.querySelector('[data-stat="loss"]').textContent =
+          (t.stats.loss_pct || 0).toFixed(1) + '%';
+
+        renderSpark(card.querySelector('.spark'), t.samples);
+      }
+    }
+
+    function renderSpark(svg, samples) {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      if (!samples.length) return;
+      const w = 300, h = 48;
+      const lats = samples.filter(s => s.ok && s.latency).map(s => s.latency);
+      const maxL = Math.max(5, ...lats);
+      const step = w / Math.max(samples.length - 1, 1);
+      const NS = 'http://www.w3.org/2000/svg';
+
+      const mid = document.createElementNS(NS, 'line');
+      mid.setAttribute('x1', 0); mid.setAttribute('x2', w);
+      mid.setAttribute('y1', h / 2); mid.setAttribute('y2', h / 2);
+      mid.setAttribute('stroke', '#2a2a38'); mid.setAttribute('stroke-dasharray', '2 4');
+      svg.appendChild(mid);
+
+      let pathPts = [];
+      const flush = () => {
+        if (pathPts.length >= 2) {
+          const d = 'M ' + pathPts.map(p => p.join(' ')).join(' L ');
+          const path = document.createElementNS(NS, 'path');
+          path.setAttribute('d', d);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', '#4fc3f7');
+          path.setAttribute('stroke-width', '1.5');
+          svg.appendChild(path);
+        }
+        pathPts = [];
+      };
+
+      samples.forEach((s, i) => {
+        const x = i * step;
+        if (!s.ok || !s.latency) {
+          const tick = document.createElementNS(NS, 'line');
+          tick.setAttribute('x1', x); tick.setAttribute('x2', x);
+          tick.setAttribute('y1', 2); tick.setAttribute('y2', h - 2);
+          tick.setAttribute('stroke', '#f44336');
+          tick.setAttribute('stroke-width', '1');
+          svg.appendChild(tick);
+          flush();
+        } else {
+          const y = h - 3 - (Math.min(s.latency, maxL) / maxL) * (h - 8);
+          pathPts.push([x.toFixed(1), y.toFixed(1)]);
+        }
+      });
+      flush();
+
+      const lbl = document.createElementNS(NS, 'text');
+      lbl.setAttribute('x', w - 4); lbl.setAttribute('y', 10);
+      lbl.setAttribute('text-anchor', 'end');
+      lbl.setAttribute('fill', '#8a8a9a');
+      lbl.setAttribute('font-size', '8');
+      lbl.setAttribute('font-family', 'Consolas, monospace');
+      lbl.textContent = `${maxL.toFixed(0)}ms`;
+      svg.appendChild(lbl);
+    }
+
+    function renderChart(status) {
+      const ctx = document.getElementById('chart').getContext('2d');
+      const datasets = status.targets.map((t, i) => ({
+        label: `${t.name} (${t.kind_label})`,
+        data: t.samples
+          .filter(s => s.ok && s.latency)
+          .map(s => ({ x: s.ts * 1000, y: s.latency })),
+        borderColor: SERIES_COLORS[i % SERIES_COLORS.length],
+        backgroundColor: SERIES_COLORS[i % SERIES_COLORS.length] + '22',
+        tension: 0.2,
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        spanGaps: 3000,
+      }));
+
+      if (!chart) {
+        chart = new Chart(ctx, {
+          type: 'line',
+          data: { datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            interaction: { intersect: false, mode: 'nearest' },
+            plugins: {
+              legend: {
+                labels: { color: '#f0f0f0', boxWidth: 12, font: { size: 11 } },
+                position: 'top',
+              },
+              tooltip: {
+                backgroundColor: '#1f1f2c',
+                borderColor: '#2a2a38',
+                borderWidth: 1,
+                titleColor: '#f0f0f0',
+                bodyColor: '#f0f0f0',
+                callbacks: {
+                  title: (items) => new Date(items[0].parsed.x).toLocaleTimeString(),
+                  label: (item) => `${item.dataset.label}: ${item.parsed.y.toFixed(1)} ms`,
+                },
+              },
+            },
+            scales: {
+              x: {
+                type: 'linear',
+                ticks: {
+                  color: '#8a8a9a',
+                  callback: (v) => new Date(v).toLocaleTimeString(),
+                  maxTicksLimit: 8,
+                  font: { size: 10 },
+                },
+                grid: { color: '#2a2a38' },
+              },
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: 'Latency (ms)', color: '#8a8a9a' },
+                ticks: { color: '#8a8a9a', font: { size: 10 } },
+                grid: { color: '#2a2a38' },
+              },
+            },
+          },
+        });
+      } else {
+        chart.data.datasets = datasets;
+        chart.update('none');
+      }
+    }
+
+    function appendEvent(e) {
+      const events = document.getElementById('events');
+      const row = document.createElement('div');
+      row.className = 'event ' + (e.severity || 'info');
+      const ts = new Date(e.ts * 1000).toLocaleTimeString();
+      const tsSpan = document.createElement('span');
+      tsSpan.className = 'ts';
+      tsSpan.textContent = `[${ts}] `;
+      const msgSpan = document.createElement('span');
+      msgSpan.className = 'msg';
+      msgSpan.textContent = e.message;
+      row.appendChild(tsSpan);
+      row.appendChild(msgSpan);
+      events.appendChild(row);
+      events.scrollTop = events.scrollHeight;
+      while (events.children.length > 300) {
+        events.removeChild(events.firstChild);
+      }
+    }
+
+    async function tick() {
+      try {
+        const status = await api('/api/status');
+        renderBanner(status);
+        renderCards(status);
+        renderChart(status);
+
+        const evr = await api('/api/events?since=' + lastEventSeq);
+        for (const e of evr.events) {
+          appendEvent(e);
+          if (e.severity === 'fail' && e.message.includes('DOWN')) {
+            playDropSound();
+          }
+        }
+        if (typeof evr.latest_seq === 'number') lastEventSeq = evr.latest_seq;
+      } catch (err) {
+        console.error('tick failed', err);
+      }
+    }
+
+    async function openSettings() {
+      try {
+        const cfg = await api('/api/config');
+        const form = document.getElementById('settings-form');
+        for (const [k, v] of Object.entries(cfg)) {
+          const el = form.elements[k];
+          if (!el) continue;
+          if (el.type === 'checkbox') {
+            el.checked = !!v;
+          } else {
+            el.value = v;
+          }
+        }
+        settingsDialog.showModal();
+      } catch (err) {
+        alert('Failed to load config: ' + err.message);
+      }
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const form = document.getElementById('settings-form');
+      const data = {};
+      for (const el of form.elements) {
+        if (!el.name) continue;
+        data[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+      }
+      try {
+        await api('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        settingsDialog.close();
+        // Force full rebuild: cards may have changed, chart datasets stale
+        document.getElementById('cards').dataset.key = '';
+        if (chart) { chart.destroy(); chart = null; }
+        await tick();
+      } catch (err) {
+        alert('Save failed: ' + err.message);
+      }
+    }
+
+    function clearLog() {
+      document.getElementById('events').innerHTML = '';
+    }
+
+    function setNv(field, text, warn = false) {
+      const el = document.querySelector(`[data-nf="${field}"]`);
+      if (!el) return;
+      el.textContent = text;
+      el.classList.toggle('warn', !!warn);
+    }
+
+    async function refreshNetinfo(force = false) {
+      const btn = document.getElementById('refresh-netinfo-btn');
+      btn.disabled = true;
+      btn.textContent = 'Refreshing…';
+      try {
+        const info = await api('/api/netinfo' + (force ? '?refresh=1' : ''));
+        const active = info.active || {};
+        setNv('hostname', info.hostname || '—');
+        const name = active.name || '';
+        const desc = active.description || '';
+        setNv('interface', name ? (name + (desc ? '  —  ' + desc : '')) : '—');
+        setNv('ipv4', active.ipv4 || info.primary_ip || '—');
+        setNv('subnet', active.cidr || active.subnet_mask || '—');
+        setNv('gateway', active.gateway || '—');
+        const dns = active.dns_servers || [];
+        setNv('dns', dns.length ? dns.join(', ') : '—');
+        setNv('mac', active.mac || '—');
+        let dhcp = '—';
+        if (active.dhcp === true) {
+          dhcp = 'Yes';
+          if (active.dhcp_server) dhcp += `  (server ${active.dhcp_server})`;
+        } else if (active.dhcp === false) {
+          dhcp = 'No (static)';
+        }
+        setNv('dhcp', dhcp);
+        const outbound = info.outbound_iface;
+        const primary = info.primary_ip || '—';
+        if (outbound && outbound.name && outbound.name !== active.name) {
+          setNv('outbound', `${primary}  (via ${outbound.name})`, true);
+        } else {
+          setNv('outbound', primary);
+        }
+        const ts = info.fetched_at
+          ? new Date(info.fetched_at * 1000).toLocaleTimeString()
+          : '';
+        document.getElementById('netinfo-fetched').textContent =
+          ts ? `· updated ${ts}` : '';
+      } catch (err) {
+        console.warn('netinfo fetch failed', err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      settingsDialog = document.getElementById('settings-dialog');
+      document.getElementById('settings-btn').addEventListener('click', openSettings);
+      document.getElementById('clear-log-btn').addEventListener('click', clearLog);
+      document.getElementById('save-log-btn').addEventListener('click', saveLog);
+      document.getElementById('mute-btn').addEventListener('click', toggleMute);
+      document.getElementById('refresh-netinfo-btn').addEventListener('click',
+        () => refreshNetinfo(true));
+      document.getElementById('cancel-btn').addEventListener('click',
+        () => settingsDialog.close());
+      document.getElementById('settings-form').addEventListener('submit', saveSettings);
+      // Unlock Web Audio after any user interaction (autoplay policy)
+      document.addEventListener('click', ensureAudio, { capture: true });
+      updateMuteButton();
+      tick();
+      refreshNetinfo();
+      setInterval(tick, 1000);
+      setInterval(() => refreshNetinfo(), 30000);
+    });
+  </script>
+</body>
+</html>
