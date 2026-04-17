@@ -37,9 +37,9 @@ class Monitor:
             th.join(timeout=2.0)
         self.threads.clear()
 
-    def _emit_transition(self, target_name: str, host_label: str, kind_label: str,
+    def _emit_transition(self, target: Target, host_label: str, kind_label: str,
                          stats: Stats, result: ProbeResult) -> None:
-        prefix = f"{target_name} ({host_label}) [{kind_label}]"
+        prefix = f"[{target.group}] {target.name} ({host_label}) [{kind_label}]"
         if not result.ok:
             if stats.consecutive_fail == 1:
                 self.event_log.add(
@@ -68,7 +68,7 @@ class Monitor:
             start = time.time()
             result = icmp_ping(target.host, self.config.timeout_ms)
             stats.add(result.ok, result.latency_ms, result.timestamp)
-            self._emit_transition(target.name, target.host, "ICMP", stats, result)
+            self._emit_transition(target, target.host, "ICMP", stats, result)
             elapsed = time.time() - start
             wait = max(0.0, self.config.probe_interval - elapsed)
             if self.stop_event.wait(wait):
@@ -84,7 +84,7 @@ class Monitor:
             start = time.time()
             result = tcp_connect(target.host, target.tcp_port, self.config.timeout_ms)
             stats.add(result.ok, result.latency_ms, result.timestamp)
-            self._emit_transition(target.name, host_label, kind_label, stats, result)
+            self._emit_transition(target, host_label, kind_label, stats, result)
             elapsed = time.time() - start
             wait = max(0.0, self.config.tcp_probe_interval - elapsed)
             if self.stop_event.wait(wait):
