@@ -82,7 +82,7 @@ The companion Tk GUI mirrors the web UI in a native window (status banner, per-t
 Clone the repo and launch:
 
 ```bash
-git clone https://github.com/<your-org>/FTS-Network-Monitor.git
+git clone https://github.com/MuchDevSuchCode/FTS-Network-Monitor.git
 cd FTS-Network-Monitor
 python fts_netmon.py
 ```
@@ -301,7 +301,7 @@ Known quirk: macOS `ping -W` takes milliseconds, not seconds (Linux takes second
 - Probe thread join timeout in `monitor.py` (2.0 s) can be shorter than the worst-case probe duration.
 - Linux `/etc/resolv.conf` DNS is reported per-interface even though it's system-wide.
 
-PRs welcome — see the [issues page](https://github.com/<your-org>/FTS-Network-Monitor/issues).
+PRs welcome — see the [issues page](https://github.com/MuchDevSuchCode/FTS-Network-Monitor/issues).
 
 ## License
 
