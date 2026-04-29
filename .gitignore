@@ -1,33 +1,71 @@
-# Python
+# --- Python --------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+*.egg
 *.egg-info/
 .eggs/
 build/
 dist/
-.claude
+wheels/
+pip-wheel-metadata/
+MANIFEST
 
-# Virtual environments
+# --- Virtual environments ------------------------------------------------
 .venv/
 venv/
 env/
 ENV/
+.python-version
 
-# IDE / editor
+# --- Test / type-check / coverage artifacts ------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+
+# --- Packaging / installers ---------------------------------------------
+*.spec
+*.manifest
+
+# --- IDE / editors -------------------------------------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-project
+*.sublime-workspace
 
-# OS
+# --- OS junk -------------------------------------------------------------
 .DS_Store
 Thumbs.db
 desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db
 
-# Local config / runtime
+# --- Claude Code / AI tooling --------------------------------------------
+.claude/
+.claude/**
+.aider*
+.cursor/
+
+# --- Local config & runtime artifacts -----------------------------------
 config.local.json
+*.local.json
 *.log
+*.log.*
+fts-netmon-*.log
+
+# --- Misc ---------------------------------------------------------------
+*.bak
+*.tmp
+*.orig
