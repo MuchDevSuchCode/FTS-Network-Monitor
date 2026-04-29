@@ -257,18 +257,23 @@ pre code { background: transparent; padding: 0; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;          /* allow grid item to shrink instead of overflow */
+  overflow: hidden;
 }
 .hero-meta strong {
   font-size: clamp(0.95rem, 0.7rem + 0.6vw, 1.15rem);
   color: var(--accent);
   font-weight: 700;
   letter-spacing: 0.2px;
+  overflow-wrap: anywhere;  /* break long labels rather than spilling */
+  hyphens: auto;
 }
 .hero-meta span {
   font-size: 0.75rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.6px;
+  overflow-wrap: anywhere;
 }
 
 /* Terminal mock */
